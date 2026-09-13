@@ -4,10 +4,10 @@ WSJ_MIX_HIERARCHICAL_P = '/mnt/nvme/hierarchical_sound_datasets/WSJ0_mix_partiti
 ESC50_HIERARCHICAL_P = '/mnt/nvme/hierarchical_sound_datasets/ESC50_partitioned/'
 WHAM_ROOT_PATH = '/mnt/data/wham'
 WHAMR_ROOT_PATH = '/mnt/data/whamr'
-LIBRI2MIX_ROOT_PATH = '/mnt/data/libri_mix/Libri2Mix'
+LIBRI2MIX_ROOT_PATH = '/kaggle/input/datasets/unconscious/libri2mix-8khz-min/Libri2Mix'
 MUSDB_ROOT_PATH = '/mnt/data/Music/MUSDB18'
 MUSDBWAV_ROOT_PATH = '/mnt/data/Music/MUSDB18wav'
 MUSDBWAV8K_ROOT_PATH = '/mnt/data/Music/MUSDB18wav8k'
 FUSS_ROOT_PATH = '/mnt/data/fuss_dataset/fuss_dev/ssdata'
 
-API_KEY = 'your_cometml_api_key'
+API_KEY = 'YA82nT0T95PaAOA73KkMRUR4z'
