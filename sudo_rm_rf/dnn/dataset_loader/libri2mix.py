@@ -91,10 +91,12 @@ class Dataset(torch.utils.data.Dataset, abstract_dataset.Dataset):
         self.root_path = self.get_arg_and_check_validness(
             'root_dirpath', known_type=str,
             extra_lambda_checks=[lambda y: os.path.lexists(y)])
+        
         self.dataset_dirpath = self.get_path()
-
+        cache_dir = '/kaggle/working/libri2mix_metadata_cache'
+        os.makedirs(cache_dir, exist_ok=True)
         self.mixtures_info_metadata_path = os.path.join(
-            self.dataset_dirpath, 'metadata')
+            cache_dir, '{}_{}_metadata'.format(self.split, self.task))
 
         self.timelength = self.get_arg_and_check_validness(
             'timelength', known_type=float)
