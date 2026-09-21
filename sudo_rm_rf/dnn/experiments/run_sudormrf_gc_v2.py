@@ -69,9 +69,6 @@ else:
     hparams['n_sources'] = 2
 
 if hparams["checkpoints_path"] is not None:
-    if hparams["save_checkpoint_every"] <= 0:
-        raise ValueError("Expected a value greater than 0 for checkpoint "
-                         "storing.")
     if not os.path.exists(hparams["checkpoints_path"]):
         os.makedirs(hparams["checkpoints_path"])
 
@@ -246,12 +243,18 @@ for i in range(start_epoch, hparams['n_epochs']):
         res_dic[loss_name]['acc'] = []
     pprint(res_dic)
 
-    if hparams["checkpoints_path"] is not None:
+    if hparams["checkpoints_path"] is not None and 'val_SISDRi' in res_dic:
+        epoch = i + 1
+        previous_best = best_val_sisdri
         best_val_sisdri = save_checkpoint_per_best(
             best_val_sisdri,
             res_dic['val_SISDRi']['mean'],
             res_dic['tr_back_loss_SISDRi']['mean'],
-            i + 1,
+            epoch,
             model,
             opt,
             hparams["checkpoints_path"])
+        if best_val_sisdri > previous_best:
+            print('Saved new best checkpoint to {}'.format(
+                os.path.join(hparams["checkpoints_path"],
+                             f"epoch.{epoch:04}.pth")))
