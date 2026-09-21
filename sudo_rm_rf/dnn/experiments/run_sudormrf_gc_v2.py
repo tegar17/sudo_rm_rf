@@ -52,6 +52,26 @@ def load_last_checkpoint_n_get_epoch(checkpoint_dir, model, optimizer, device):
             checkpoint_dict.get('val_sisdri', -1e9))
 
 
+def resolve_checkpoint_dir(checkpoint_dir):
+    """Use the project-level log folder when a nested path is empty."""
+    checkpoint_dir = os.path.abspath(os.path.expanduser(checkpoint_dir))
+    candidates = [checkpoint_dir]
+    project_checkpoint_dir = os.path.join(root_dir, 'log', 'scratch_weights')
+    if os.path.normcase(checkpoint_dir) != os.path.normcase(project_checkpoint_dir):
+        candidates.append(project_checkpoint_dir)
+
+    for candidate in candidates:
+        if not os.path.isdir(candidate):
+            continue
+        if any(re.fullmatch(r'epoch\.\d+\.pth', filename)
+               for filename in os.listdir(candidate)):
+            if os.path.normcase(candidate) != os.path.normcase(checkpoint_dir):
+                print('No checkpoint found in: {}'.format(checkpoint_dir))
+                print('Using checkpoint folder: {}'.format(candidate))
+            return candidate
+    return checkpoint_dir
+
+
 def save_checkpoint_per_best(best, val_sisdri, train_loss, epoch, model,
                               optimizer, checkpoint_path):
     if val_sisdri > best:
@@ -73,6 +93,8 @@ hparams = vars(args)
 if hparams["checkpoints_path"] is None:
     hparams["checkpoints_path"] = os.path.join(
         root_dir, 'log', 'scratch_weights')
+hparams["checkpoints_path"] = resolve_checkpoint_dir(
+    hparams["checkpoints_path"])
 
 generators = dataset_setup.setup(hparams)
 
