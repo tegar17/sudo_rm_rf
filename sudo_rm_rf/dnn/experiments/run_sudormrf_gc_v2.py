@@ -26,8 +26,41 @@ import sudo_rm_rf.dnn.utils.cometml_loss_report as cometml_report
 import sudo_rm_rf.dnn.utils.cometml_log_audio as cometml_audio_logger
 
 
+def load_last_checkpoint_n_get_epoch(checkpoint_dir, model, optimizer, device):
+    if not os.path.exists(checkpoint_dir):
+        return 0
+    checkpoint_files = [f for f in os.listdir(checkpoint_dir) if f.startswith('epoch.')]
+    if not checkpoint_files:
+        return 0
+    epochs = [int(f.split('.')[1]) for f in checkpoint_files]
+    latest_checkpoint_file = os.path.join(
+        checkpoint_dir, checkpoint_files[epochs.index(max(epochs))])
+    print('Loaded checkpoint from {}'.format(latest_checkpoint_file))
+    checkpoint_dict = torch.load(latest_checkpoint_file, map_location=device)
+    model.load_state_dict(checkpoint_dict['model_state_dict'], strict=False)
+    optimizer.load_state_dict(checkpoint_dict['optimizer_state_dict'])
+    return checkpoint_dict['epoch'] + 1
+
+
+def save_checkpoint_per_best(best, val_sisdri, train_loss, epoch, model,
+                              optimizer, checkpoint_path):
+    if val_sisdri > best:
+        torch.save(
+            {
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'train_loss': train_loss,
+                'val_sisdri': val_sisdri,
+            },
+            os.path.join(checkpoint_path, f"epoch.{epoch:04}.pth"))
+        best = val_sisdri
+    return best
+
+
 args = parser.get_args()
 hparams = vars(args)
+
 generators = dataset_setup.setup(hparams)
 
 if hparams['separation_task'] == 'enh_single':
@@ -104,6 +137,11 @@ print('Trainable Parameters: {}'.format(numparams))
 
 model = torch.nn.DataParallel(model).cuda()
 opt = torch.optim.Adam(model.parameters(), lr=hparams['learning_rate'])
+
+start_epoch = 0
+if hparams["checkpoints_path"] is not None:
+    start_epoch = load_last_checkpoint_n_get_epoch(
+        hparams["checkpoints_path"], model, opt, device='cuda')
 # lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
 #     optimizer=opt, mode='max', factor=1. / hparams['divide_lr_by'],
 #     patience=hparams['patience'], verbose=True)
@@ -118,8 +156,8 @@ def normalize_tensor_wav(wav_tensor, eps=1e-8, std=None):
 
 tr_step = 0
 val_step = 0
-prev_epoch_val_loss = 0.
-for i in range(hparams['n_epochs']):
+best_val_sisdri = -1e9
+for i in range(start_epoch, hparams['n_epochs']):
     res_dic = {}
     for loss_name in all_losses:
         res_dic[loss_name] = {'mean': 0., 'std': 0., 'acc': []}
