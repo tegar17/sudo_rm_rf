@@ -246,10 +246,12 @@ for i in range(start_epoch, hparams['n_epochs']):
         res_dic[loss_name]['acc'] = []
     pprint(res_dic)
 
-    if hparams["save_checkpoint_every"] > 0:
-        if tr_step % hparams["save_checkpoint_every"] == 0:
-            torch.save(
-                model.state_dict(),
-                os.path.join(hparams["checkpoints_path"],
-                             f"gc_sudo_epoch_{tr_step}"),
-            )
+    if hparams["checkpoints_path"] is not None:
+        best_val_sisdri = save_checkpoint_per_best(
+            best_val_sisdri,
+            res_dic['val_SISDRi']['mean'],
+            res_dic['tr_back_loss_SISDRi']['mean'],
+            i + 1,
+            model,
+            opt,
+            hparams["checkpoints_path"])
