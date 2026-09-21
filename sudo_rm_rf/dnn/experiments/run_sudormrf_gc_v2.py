@@ -6,8 +6,9 @@
 """
 
 import os
+import re
 import sys
-current_dir = os.path.dirname(os.path.abspath('__file__'))
+current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.abspath(os.path.join(current_dir, '../../../'))
 sys.path.append(root_dir)
 
@@ -27,19 +28,28 @@ import sudo_rm_rf.dnn.utils.cometml_log_audio as cometml_audio_logger
 
 
 def load_last_checkpoint_n_get_epoch(checkpoint_dir, model, optimizer, device):
-    if not os.path.exists(checkpoint_dir):
-        return 0
-    checkpoint_files = [f for f in os.listdir(checkpoint_dir) if f.startswith('epoch.')]
+    checkpoint_dir = os.path.abspath(os.path.expanduser(checkpoint_dir))
+    if not os.path.isdir(checkpoint_dir):
+        print('Checkpoint folder not found: {}'.format(checkpoint_dir))
+        return 0, -1e9
+
+    checkpoint_files = []
+    for filename in os.listdir(checkpoint_dir):
+        match = re.fullmatch(r'epoch\.(\d+)\.pth', filename)
+        if match:
+            checkpoint_files.append((int(match.group(1)), filename))
     if not checkpoint_files:
-        return 0
-    epochs = [int(f.split('.')[1]) for f in checkpoint_files]
-    latest_checkpoint_file = os.path.join(
-        checkpoint_dir, checkpoint_files[epochs.index(max(epochs))])
+        print('No checkpoint found in: {}'.format(checkpoint_dir))
+        return 0, -1e9
+
+    _, latest_checkpoint_name = max(checkpoint_files, key=lambda item: item[0])
+    latest_checkpoint_file = os.path.join(checkpoint_dir, latest_checkpoint_name)
     print('Loaded checkpoint from {}'.format(latest_checkpoint_file))
     checkpoint_dict = torch.load(latest_checkpoint_file, map_location=device)
     model.load_state_dict(checkpoint_dict['model_state_dict'], strict=False)
     optimizer.load_state_dict(checkpoint_dict['optimizer_state_dict'])
-    return checkpoint_dict['epoch'] + 1
+    return (checkpoint_dict['epoch'] + 1,
+            checkpoint_dict.get('val_sisdri', -1e9))
 
 
 def save_checkpoint_per_best(best, val_sisdri, train_loss, epoch, model,
@@ -60,6 +70,9 @@ def save_checkpoint_per_best(best, val_sisdri, train_loss, epoch, model,
 
 args = parser.get_args()
 hparams = vars(args)
+if hparams["checkpoints_path"] is None:
+    hparams["checkpoints_path"] = os.path.join(
+        root_dir, 'log', 'scratch_weights')
 
 generators = dataset_setup.setup(hparams)
 
@@ -136,8 +149,9 @@ model = torch.nn.DataParallel(model).cuda()
 opt = torch.optim.Adam(model.parameters(), lr=hparams['learning_rate'])
 
 start_epoch = 0
+best_val_sisdri = -1e9
 if hparams["checkpoints_path"] is not None:
-    start_epoch = load_last_checkpoint_n_get_epoch(
+    start_epoch, best_val_sisdri = load_last_checkpoint_n_get_epoch(
         hparams["checkpoints_path"], model, opt, device='cuda')
 # lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
 #     optimizer=opt, mode='max', factor=1. / hparams['divide_lr_by'],
@@ -153,7 +167,6 @@ def normalize_tensor_wav(wav_tensor, eps=1e-8, std=None):
 
 tr_step = 0
 val_step = 0
-best_val_sisdri = -1e9
 for i in range(start_epoch, hparams['n_epochs']):
     res_dic = {}
     for loss_name in all_losses:
