@@ -49,7 +49,7 @@ def load_last_checkpoint_n_get_epoch(checkpoint_dir, model, optimizer, device):
         latest_checkpoint_file, map_location=device, weights_only=False)
     model.load_state_dict(checkpoint_dict['model_state_dict'], strict=False)
     optimizer.load_state_dict(checkpoint_dict['optimizer_state_dict'])
-    return (checkpoint_dict['epoch'] + 1,
+    return (checkpoint_dict['epoch'],
             checkpoint_dict.get('val_sisdri', -1e9))
 
 
