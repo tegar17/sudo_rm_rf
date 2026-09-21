@@ -45,7 +45,8 @@ def load_last_checkpoint_n_get_epoch(checkpoint_dir, model, optimizer, device):
     _, latest_checkpoint_name = max(checkpoint_files, key=lambda item: item[0])
     latest_checkpoint_file = os.path.join(checkpoint_dir, latest_checkpoint_name)
     print('Loaded checkpoint from {}'.format(latest_checkpoint_file))
-    checkpoint_dict = torch.load(latest_checkpoint_file, map_location=device)
+    checkpoint_dict = torch.load(
+        latest_checkpoint_file, map_location=device, weights_only=False)
     model.load_state_dict(checkpoint_dict['model_state_dict'], strict=False)
     optimizer.load_state_dict(checkpoint_dict['optimizer_state_dict'])
     return (checkpoint_dict['epoch'] + 1,
